@@ -228,3 +228,86 @@ def get_lipschitz(model, X, y, epsilon=3, framework='shap', sample_num=None):
         if max_val:
             l_values.append(max_val)
     return l_values
+
+def check_consistency(models, X, y, epsilon=3, framework='shap', sample_num=None):
+    
+    if not isinstance(models, list) or len(models) <2:
+        print('Provide list of models as the first argument')
+        return
+    
+    """
+    sample_num - how many observations should be compared across the models 
+    """
+
+    if not sample_num:
+        sample_num = int(len(X)/4)
+        
+    indexes = np.random.permutation(len(X))[:sample_num]
+    
+    data = X.iloc[indexes]
+
+    chosen_importances_per_model = []
+    
+    if framework == 'shap':
+        for model in models:
+            explainer = shap.TreeExplainer(model)
+            all_importances = explainer.shap_values(X)
+
+            #If is multiclass, choose explanation for the correct class
+            if isinstance(all_importances, list):
+                right_imps = []
+                for idx, label in enumerate(y):
+                    right_imps.append(all_importances[label][idx])
+                all_importances = right_imps
+
+            chosen_importances = [all_importances[i] for i in indexes]
+            chosen_importances_per_model.append(chosen_importances)
+
+
+    elif framework == 'lime':
+        for model in models:
+            all_importances = []
+
+            explainer = lime.lime_tabular.LimeTabularExplainer(X.values, feature_names=X.columns)
+
+            for index, (skip, row) in enumerate(data.iterrows()):
+                correct_label = y[index]
+
+                #If is multiclass, choose explanation for the correct class
+                exp = explainer.explain_instance(row, model.predict_proba, num_features=len(X.columns), labels=(correct_label, ))
+                imps = dict()
+
+                for feat in exp.local_exp[correct_label]:
+                    imps[feat[0]] = feat[1]
+                imp_vals = []
+                for i in range(len(imps)):
+                    imp_vals.append(imps[i])
+
+                all_importances.append(imp_vals)
+            chosen_importances_per_model.append(all_importances)
+
+    else:
+        print('Bad framework.')
+        return None
+
+    if isinstance(indexes, np.ndarray):
+        indexes = indexes.tolist()
+    
+    c_values = []
+    
+    for obs_idx in range(len(data)):
+        largest_dist = 0
+        for model_idx, model_imps in enumerate(chosen_importances_per_model):
+            for compared_model in chosen_importances_per_model[:model_idx]:
+                current_imps = model_imps[obs_idx]
+                other_imps = compared_model[obs_idx]
+                if not isinstance(current_imps, np.ndarray):
+                    current_imps = np.array(current_imps)
+                if not isinstance(other_imps, np.ndarray):
+                    other_imps = np.array(other_imps)
+                dist = np.linalg.norm(current_imps - other_imps)
+                if dist > largest_dist:
+                    largest_dist = dist
+        c_values.append(largest_dist)
+        
+    return c_values
