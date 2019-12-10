@@ -229,6 +229,7 @@ def get_lipschitz(model, X, y, epsilon=3, framework='shap', sample_num=None):
             l_values.append(max_val)
     return l_values
 
+
 def check_consistency(models, X, y, epsilon=3, framework='shap', sample_num=None):
     
     if not isinstance(models, list) or len(models) <2:
