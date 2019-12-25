@@ -332,59 +332,64 @@ def check_consistency(models, X, y, epsilon=3, framework='shap', sample_num=None
         
     return c_values
 
-def gradual_elimination(model, X, y, importances, test_X=None, test_y=None, single_drop=False, categorical_cols=[]):
+def gradual_elimination(model, X, y, importances, test_X=None, test_y=None, single_drop=False, categorical_cols=[], removal_order=[]):
 
-    #Sort importances while keeping corresponding feature information
-    indexes = [i for i in range(len(importances))]
-    importances_df = pd.DataFrame([*zip(*[indexes, importances])])
-    importances_df['Feature names'] = X.columns#['a', 'b', 'c', 'd', 'e']
-    importances_df.sort_values(by=1, axis=0, inplace=True, ascending=True)
-    
-    if test_X:
-        limited_X = test_X.copy()
-    else:
-        test_X = X.copy()
-        test_y = y.copy()
-        limited_X = test_X.copy()
-        
-    baseline_accuracy = accuracy_score(test_y, model.predict(test_X))
-    accuracy_losses = []
-    
-    for feat_idx in importances_df[0]:
-        
-        #Bigger data set is used to get expected values.
-        original_col = X[X.columns[feat_idx]]
-        
-        #Categorical data is accepted as 0's and 1's column, multiclass yet to be added. Proportion is 
-        if feat_idx in categorical_cols:
-            limited_X[limited_X.columns[feat_idx]] = np.random.permutation(limited_X[limited_X.columns[feat_idx]])
-        else:
-            limited_X[limited_X.columns[feat_idx]] = np.mean(X[X.columns[feat_idx]])
-        
-        acc_loss = baseline_accuracy - accuracy_score(test_y, model.predict(limited_X))
-        accuracy_losses.append(acc_loss)
-        
-        if single_drop:
-            limited_X = test_X.copy()
-        
-    sns.set_style("whitegrid")
-    
-    fig = plt.figure()
+   #Sort importances while keeping corresponding feature information
+   indexes = [i for i in range(len(importances))]
+   importances_df = pd.DataFrame([*zip(*[indexes, importances])])
+   importances_df['Feature names'] = X.columns
+   
+   if not removal_order:
+       importances_df.sort_values(by=1, axis=0, inplace=True, ascending=True)
+   else:
+       importances_df['Removal order'] = removal_order
+       importances_df.sort_values(by='Removal order', axis=0, inplace=True, ascending=True)
+       
+   if test_X:
+       limited_X = test_X.copy()
+   else:
+       test_X = X.copy()
+       test_y = y.copy()
+       limited_X = test_X.copy()
+       
+   baseline_accuracy = accuracy_score(test_y, model.predict(test_X))
+   accuracy_losses = []
+   
+   for feat_idx in importances_df[0]:
+       
+       #Bigger data set is used to get expected values.
+       original_col = X[X.columns[feat_idx]]
+       
+       #Categorical data is accepted as 0's and 1's column, multiclass yet to be added. Proportion is
+       if feat_idx in categorical_cols:
+           limited_X[limited_X.columns[feat_idx]] = np.random.permutation(limited_X[limited_X.columns[feat_idx]])
+       else:
+           limited_X[limited_X.columns[feat_idx]] = np.mean(X[X.columns[feat_idx]])
+       
+       acc_loss = baseline_accuracy - accuracy_score(test_y, model.predict(limited_X))
+       accuracy_losses.append(acc_loss)
+       
+       if single_drop:
+           limited_X = test_X.copy()
+       
+   sns.set_style("whitegrid")
+   
+   fig = plt.figure()
 
-    importances_df.reset_index(drop=True, inplace=True)
-    importances_df['Loss of accuracy'] = accuracy_losses
-    
-    ax1 = fig.add_subplot(111)
-    sns.barplot(x='Feature names', y=importances_df[1], data=importances_df, edgecolor='k', color='aliceblue', linewidth=2, order=importances_df[0])
-    plt.ylabel('Importance share')
-    plt.xlabel('Dropped feature name')
+   importances_df.reset_index(drop=True, inplace=True)
+   importances_df['Loss of accuracy'] = accuracy_losses
+   
+   ax1 = fig.add_subplot(111)
+   sns.barplot(x=importances_df['Feature names'], y=importances_df[1], edgecolor='k', color='aliceblue', linewidth=2)
+   plt.ylabel('Importance share')
+   plt.xlabel('Dropped feature name')
 
-    sns.set_style("white")
-    ax2 = fig.add_subplot(111, sharex=ax1, frameon=False)
-    sns.lineplot(x=[i for i in range(len(importances))], y='Loss of accuracy', marker='o', color='m', linewidth=2, data=importances_df)
-    ax2.yaxis.tick_right()
-    ax2.yaxis.set_label_position("right")
-    plt.ylabel("Loss of accuracy", color='m')
-    plt.ylim((0, 0.6))
- 
-    return importances_df
+   sns.set_style("white")
+   ax2 = fig.add_subplot(111, sharex=ax1, frameon=False)
+   sns.lineplot(x=[i for i in range(len(importances))], y='Loss of accuracy', marker='o', color='m', linewidth=2, data=importances_df)
+   ax2.yaxis.tick_right()
+   ax2.yaxis.set_label_position("right")
+   plt.ylabel("Loss of accuracy", color='m')
+   plt.ylim((0, 0.6))
+
+   return importances_df
