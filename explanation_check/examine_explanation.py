@@ -100,7 +100,7 @@ def examine_local_fidelity(model, X, y, epsilon=5, resolution=10, count_per_step
 
         explainer = lime.lime_tabular.LimeTabularExplainer(X.values, feature_names=X.columns)
 
-        for index, (skip, row) in enumerate(X.iterrows()):
+        for index, row in X.iterrows():
             correct_label = y[index]
             
             #If is multiclass, choose explanation for the correct class
