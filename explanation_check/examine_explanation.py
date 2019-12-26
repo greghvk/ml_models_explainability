@@ -70,6 +70,7 @@ def examine_interpretation(model, X, y, importances, epsilon=5, resolution=10, c
     return accuraties
 
 
+
 def examine_local_fidelity(model, X, y, epsilon=5, resolution=10, count_per_step=5, framework='shap', from_zero=False, proportionality_mode=0, categorical_cols=[], probability_multiplier=1):
     """
     categorical_cols - Best result for categorical data is reached by one hot encoding and providing list of lists of column indexes of categories.
@@ -97,12 +98,12 @@ def examine_local_fidelity(model, X, y, epsilon=5, resolution=10, count_per_step
 
     elif framework == 'lime':
         all_importances = []
-
         explainer = lime.lime_tabular.LimeTabularExplainer(X.values, feature_names=X.columns)
 
         for index, row in X.iterrows():
             correct_label = y[index]
-            
+            if np.shape(correct_label):
+                correct_label = correct_label.iloc[0]
             #If is multiclass, choose explanation for the correct class
             exp = explainer.explain_instance(row, model.predict_proba, num_features=len(X.columns), labels=(correct_label, ))
             imps = dict()
