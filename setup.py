@@ -1,11 +1,16 @@
 import setuptools
 
+with open("README.md", "r") as f:
+    long_description = f.read()
+
 setuptools.setup(
     name="xai-metrics",
-    version="0.0.1",
+    version="0.0.2",
     author="Grzegorz Huk",
     author_email="mrgreg557@gmail.com",
     description="A package for analysis and evaluating metrics for Explainable AI (XAI)",
+    long_description=long_description,
+    long_description_content_type="text/markdown",
     url="https://github.com/greghvk/ml_models_explainability",
     packages=setuptools.find_packages(),
     classifiers=[
